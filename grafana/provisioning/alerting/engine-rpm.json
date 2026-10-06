@@ -1,0 +1,116 @@
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "Recorded run checks",
+      "folder": "Osprey Racing",
+      "interval": "1m",
+      "rules": [
+        {
+          "uid": "osprey-recorded-rpm-9000",
+          "title": "Engine RPM over 9000 — latest recorded run",
+          "condition": "C",
+          "for": "0s",
+          "noDataState": "NoData",
+          "execErrState": "Error",
+          "isPaused": false,
+          "labels": {
+            "team": "osprey-racing",
+            "source": "recorded-csv",
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "Engine RPM exceeded 9,000 in the latest recorded run.",
+            "description": "Checks the maximum Engine RPM across the latest run by recorded start time. This is a recorded-run review alert, not live vehicle monitoring."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "osprey_csv",
+              "model": {
+                "refId": "A",
+                "datasource": {
+                  "type": "postgres",
+                  "uid": "osprey_csv"
+                },
+                "format": "time_series",
+                "rawQuery": true,
+                "editorMode": "code",
+                "rawSql": "SELECT recorded_at AS time, value AS rpm FROM samples WHERE run_id = (SELECT id FROM runs ORDER BY started_at DESC, id DESC LIMIT 1) AND channel = 'Engine RPM' ORDER BY recorded_at",
+                "intervalMs": 1000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "B",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "reduce",
+                "expression": "A",
+                "reducer": "max",
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "__expr__"
+                },
+                "intervalMs": 1000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "B",
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "__expr__"
+                },
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        9000
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    }
+                  }
+                ],
+                "intervalMs": 1000,
+                "maxDataPoints": 43200
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
