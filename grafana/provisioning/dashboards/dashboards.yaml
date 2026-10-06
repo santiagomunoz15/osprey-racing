@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: Osprey Racing
+    folder: Osprey Racing
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

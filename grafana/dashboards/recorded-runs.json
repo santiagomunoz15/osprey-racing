@@ -1,0 +1,192 @@
+{
+  "uid": "osprey-recorded",
+  "title": "Osprey Racing — Recorded Runs",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "time": {
+    "from": "2026-01-01T00:00:00Z",
+    "to": "2027-01-01T00:00:00Z"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "run",
+        "type": "query",
+        "label": "Recorded run",
+        "datasource": {
+          "type": "postgres",
+          "uid": "osprey_csv"
+        },
+        "query": "SELECT name || ' — ' || started_at::text AS __text, id::text AS __value FROM runs ORDER BY started_at DESC",
+        "refresh": 1,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "options": []
+      },
+      {
+        "name": "channel",
+        "type": "query",
+        "label": "Channel",
+        "datasource": {
+          "type": "postgres",
+          "uid": "osprey_csv"
+        },
+        "query": "SELECT name || ' [' || unit || ']' AS __text, name AS __value FROM channels WHERE run_id = (${run:sqlstring})::bigint ORDER BY name",
+        "refresh": 1,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Review recorded telemetry",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Select a recorded run and channel above. The graph shows the **complete selected run**, independent of the global time picker. CSV timestamps and original sample frequency are retained. Logger timezone is set during import. The Live telemetry data source becomes available when the live profile is started. The horizontal axis is elapsed seconds from the logger's origin."
+      }
+    },
+    {
+      "id": 2,
+      "type": "xychart",
+      "title": "${channel} — ${run}",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "rawSql": "SELECT elapsed_s AS elapsed_seconds, value FROM samples WHERE run_id = (${run:sqlstring})::bigint AND channel IN (${channel:sqlstring}) ORDER BY recorded_at",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "show": "lines",
+            "lineWidth": 1,
+            "pointSize": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "elapsed_seconds"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix:s"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "Elapsed time (s)"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [],
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Run details",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "rawSql": "SELECT name, started_at, sample_rate AS sample_rate_hz, source_timezone, metadata FROM runs WHERE id = (${run:sqlstring})::bigint",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Available channels",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "rawSql": "SELECT name AS channel, unit FROM channels WHERE run_id = (${run:sqlstring})::bigint ORDER BY name",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: osprey
+      POSTGRES_USER: osprey
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/02-reader.sh:/docker-entrypoint-initdb.d/02-reader.sh:ro
+      - ./db/reader.sql:/opt/reader.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osprey -d osprey"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  importer:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: Dockerfile.importer
+    environment:
+      DATABASE_URL: postgresql://osprey:${POSTGRES_PASSWORD}@postgres:5432/osprey
+    volumes:
+      - ./:/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  prometheus:
+    profiles: ["live"]
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_data:
+  grafana_data:
+  prometheus_data:
