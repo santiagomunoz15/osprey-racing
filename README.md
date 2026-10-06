@@ -2,9 +2,11 @@
 
 Recorded MoTeC CSV -> PostgreSQL -> Grafana. Future live exporter -> Prometheus -> Grafana.
 
-## Start on Windows
+## Start on macOS or Windows
 
 Install Docker Desktop with Linux containers and start it. From this directory:
+
+The Docker commands below work in both macOS Terminal and Windows PowerShell.
 
 ```powershell
 docker compose config --quiet
@@ -31,6 +33,18 @@ Imports are atomic. Original metadata, channel units, elapsed seconds, and every
 The pandas compatibility helper is optional and requires pandas; the importer does not.
 
 Validate a file without Docker using Python plus tzdata (required on Windows):
+
+On macOS, use a local virtual environment:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python import_csv.py bristol.csv --dry-run
+python -B -m unittest discover -s tests
+```
+
+On Windows:
 
 ```powershell
 python -m pip install -r requirements.txt

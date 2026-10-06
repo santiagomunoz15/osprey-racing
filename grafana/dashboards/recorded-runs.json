@@ -62,6 +62,7 @@
     {
       "id": 2,
       "type": "xychart",
+      "pluginVersion": "13.2.3",
       "title": "${channel} — ${run}",
       "datasource": {
         "type": "postgres",
@@ -91,7 +92,9 @@
           "custom": {
             "show": "lines",
             "lineWidth": 1,
-            "pointSize": 2
+            "pointSize": {
+              "fixed": 2
+            }
           }
         },
         "overrides": [
