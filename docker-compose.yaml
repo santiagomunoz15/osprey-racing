@@ -9,9 +9,9 @@ services:
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/02-reader.sh:/docker-entrypoint-initdb.d/02-reader.sh:ro
-      - ./db/reader.sql:/opt/reader.sql:ro
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./config/postgres/02-reader.sh:/docker-entrypoint-initdb.d/02-reader.sh:ro
+      - ./config/postgres/reader.sql:/opt/reader.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U osprey -d osprey"]
       interval: 5s
@@ -29,8 +29,8 @@ services:
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,7 +43,7 @@ services:
     environment:
       DATABASE_URL: postgresql://osprey:${POSTGRES_PASSWORD}@postgres:5432/osprey
     volumes:
-      - ./:/data:ro
+      - ./data:/data:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,7 +55,7 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -1,5 +1,11 @@
 .env
-*.csv
+.env.*
 .git
-__pycache__
 .venv
+__pycache__
+**/__pycache__
+**/*.egg-info
+data
+backups
+build
+dist

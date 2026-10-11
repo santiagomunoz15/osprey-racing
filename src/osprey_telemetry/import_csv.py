@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from parsing import read_motec
+from .parsers.motec import read_motec
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

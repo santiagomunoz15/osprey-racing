@@ -2,5 +2,7 @@ FROM python:3.13-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY parsing.py import_csv.py ./
-ENTRYPOINT ["python", "import_csv.py"]
+COPY pyproject.toml .
+COPY src ./src
+RUN pip install --no-cache-dir --no-deps .
+ENTRYPOINT ["python", "-m", "osprey_telemetry.import_csv"]
