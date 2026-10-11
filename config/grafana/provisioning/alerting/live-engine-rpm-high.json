@@ -1,0 +1,109 @@
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "Live telemetry checks",
+      "folder": "Osprey Racing",
+      "interval": "10s",
+      "rules": [
+        {
+          "uid": "osprey-live-rpm-9000",
+          "title": "Live - Engine RPM above 9000 (simulation)",
+          "condition": "C",
+          "for": "0s",
+          "noDataState": "NoData",
+          "execErrState": "Error",
+          "isPaused": false,
+          "labels": {
+            "team": "osprey-racing",
+            "source": "simulation",
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "Latest simulated Engine RPM is above 9,000.",
+            "description": "Checks the latest simulation reading from telemetry-test, no older than 30 seconds. No Data indicates stopped/stale input. Switch the bucket and source filter before using real telemetry."
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 30,
+                "to": 0
+              },
+              "datasourceUid": "fg0ws5zchxfy8f",
+              "model": {
+                "refId": "A",
+                "datasource": {
+                  "type": "influxdb",
+                  "uid": "fg0ws5zchxfy8f"
+                },
+                "query": "from(bucket: \"telemetry-test\")\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"engine\" and r._field == \"rpm\" and r.source == \"simulation\")\n  |> group(columns: [\"source\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\", \"source\"])",
+                "intervalMs": 1000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "B",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "B",
+                "type": "reduce",
+                "expression": "A",
+                "reducer": "last",
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "__expr__"
+                }
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "B",
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "__expr__"
+                },
+                "conditions": [
+                  {
+                    "type": "query",
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        9000
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
