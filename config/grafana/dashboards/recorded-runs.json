@@ -1,45 +1,120 @@
 {
   "uid": "osprey-recorded",
-  "title": "Osprey Racing — Recorded Runs",
+  "title": "Osprey Racing \u2014 Recorded Runs",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 5,
   "editable": true,
   "timezone": "browser",
+  "tags": [
+    "osprey-racing",
+    "recorded-runs",
+    "telemetry"
+  ],
   "time": {
-    "from": "2026-01-01T00:00:00Z",
-    "to": "2027-01-01T00:00:00Z"
+    "from": "now-1h",
+    "to": "now"
   },
+  "refresh": "",
   "templating": {
     "list": [
       {
         "name": "run",
         "type": "query",
-        "label": "Recorded run",
+        "label": "Run",
         "datasource": {
           "type": "postgres",
           "uid": "osprey_csv"
         },
-        "query": "SELECT name || ' — ' || started_at::text AS __text, id::text AS __value FROM runs ORDER BY started_at DESC",
+        "query": "SELECT name || ' \u2014 ' || started_at::text AS __text, id::text AS __value FROM runs ORDER BY started_at DESC",
         "refresh": 1,
         "sort": 0,
         "multi": false,
         "includeAll": false,
-        "options": []
+        "options": [
+          {
+            "text": "bristol",
+            "value": "1",
+            "selected": true
+          }
+        ],
+        "current": {
+          "text": "bristol",
+          "value": "1"
+        }
+      },
+      {
+        "name": "reference",
+        "type": "query",
+        "label": "Compare with",
+        "datasource": {
+          "type": "postgres",
+          "uid": "osprey_csv"
+        },
+        "query": "SELECT __text, __value FROM (SELECT 'None' AS __text, '0' AS __value, 0 AS sort_order UNION ALL SELECT name || ' - ' || started_at::text, id::text, 1 FROM runs) choices ORDER BY sort_order, __text",
+        "refresh": 1,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "None",
+          "value": "0"
+        },
+        "options": [
+          {
+            "text": "None",
+            "value": "0",
+            "selected": true
+          }
+        ]
+      },
+      {
+        "name": "axis",
+        "type": "custom",
+        "label": "Horizontal axis",
+        "query": "Elapsed time (s) : time,Distance (m) : distance",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "Elapsed time (s)",
+          "value": "time"
+        },
+        "options": [
+          {
+            "text": "Elapsed time (s)",
+            "value": "time",
+            "selected": true
+          },
+          {
+            "text": "Distance (m)",
+            "value": "distance",
+            "selected": false
+          }
+        ]
       },
       {
         "name": "channel",
         "type": "query",
-        "label": "Channel",
+        "label": "Extra channel",
         "datasource": {
           "type": "postgres",
           "uid": "osprey_csv"
         },
-        "query": "SELECT name || ' [' || unit || ']' AS __text, name AS __value FROM channels WHERE run_id = (${run:sqlstring})::bigint ORDER BY name",
+        "query": "SELECT name || ' [' || unit || ']' AS __text, name AS __value FROM channels WHERE run_id=(${run:sqlstring})::bigint ORDER BY name",
         "refresh": 1,
         "sort": 0,
         "multi": false,
         "includeAll": false,
-        "options": []
+        "options": [
+          {
+            "text": "Engine RPM [rpm]",
+            "value": "Engine RPM",
+            "selected": true
+          }
+        ],
+        "current": {
+          "text": "Engine RPM [rpm]",
+          "value": "Engine RPM"
+        }
       }
     ]
   },
@@ -47,7 +122,7 @@
     {
       "id": 1,
       "type": "text",
-      "title": "Review recorded telemetry",
+      "title": "Recorded telemetry workspace",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -56,14 +131,13 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Select a recorded run and channel above. The graph shows the **complete selected run**, independent of the global time picker. CSV timestamps and original sample frequency are retained. Logger timezone is set during import. The Live telemetry data source becomes available when the live profile is started. The horizontal axis is elapsed seconds from the logger's origin."
+        "content": "Choose a **Run**, optional **Compare with** run, and **Horizontal axis**. Colored traces are the selected run; gray traces are the reference. Time is aligned to each run's first sample; distance uses the CSV Distance channel in metres. Graphs show complete runs independently of the global time picker. Missing channels appear empty. Comparisons are whole runs, without lap alignment."
       }
     },
     {
-      "id": 2,
+      "id": 10,
       "type": "xychart",
-      "pluginVersion": "13.2.3",
-      "title": "${channel} — ${run}",
+      "title": "Speed \u00b7 km/h",
       "datasource": {
         "type": "postgres",
         "uid": "osprey_csv"
@@ -71,8 +145,8 @@
       "gridPos": {
         "x": 0,
         "y": 3,
-        "w": 24,
-        "h": 12
+        "w": 18,
+        "h": 5
       },
       "targets": [
         {
@@ -81,19 +155,40 @@
             "type": "postgres",
             "uid": "osprey_csv"
           },
-          "rawSql": "SELECT elapsed_s AS elapsed_seconds, value FROM samples WHERE run_id = (${run:sqlstring})::bigint AND channel IN (${channel:sqlstring}) ORDER BY recorded_at",
           "format": "table",
           "rawQuery": true,
-          "editorMode": "code"
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Corr Speed') AS \"Speed / selected\"\nFROM samples s WHERE s.run_id = (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Corr Speed') AS \"Speed / reference\"\nFROM samples s WHERE s.run_id = (${reference:sqlstring})::bigint\nAND (${reference:sqlstring})::bigint <> (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
         }
       ],
       "fieldConfig": {
         "defaults": {
+          "unit": "velocitykmh",
           "custom": {
             "show": "lines",
-            "lineWidth": 1,
+            "lineWidth": 2,
             "pointSize": {
               "fixed": 2
+            },
+            "axisWidth": 70,
+            "axisPlacement": "left",
+            "axisGridShow": true,
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
             }
           }
         },
@@ -101,16 +196,62 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "elapsed_seconds"
+              "options": "Position"
             },
             "properties": [
               {
                 "id": "unit",
-                "value": "suffix:s"
+                "value": "none"
+              },
+              {
+                "id": "min",
+                "value": 0
               },
               {
                 "id": "custom.axisLabel",
-                "value": "Elapsed time (s)"
+                "value": "${axis:text}"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Speed / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Speed / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
               }
             ]
           }
@@ -118,30 +259,40 @@
       },
       "options": {
         "mapping": "auto",
-        "series": [],
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "Position"
+              }
+            }
+          }
+        ],
         "tooltip": {
           "mode": "single"
         },
         "legend": {
           "showLegend": true,
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "right"
         }
-      }
+      },
+      "pluginVersion": "13.2.3"
     },
     {
-      "id": 3,
-      "type": "table",
-      "title": "Run details",
+      "id": 11,
+      "type": "xychart",
+      "title": "Engine \u00b7 RPM",
       "datasource": {
         "type": "postgres",
         "uid": "osprey_csv"
       },
       "gridPos": {
         "x": 0,
-        "y": 15,
-        "w": 12,
-        "h": 7
+        "y": 8,
+        "w": 18,
+        "h": 5
       },
       "targets": [
         {
@@ -150,28 +301,621 @@
             "type": "postgres",
             "uid": "osprey_csv"
           },
-          "rawSql": "SELECT name, started_at, sample_rate AS sample_rate_hz, source_timezone, metadata FROM runs WHERE id = (${run:sqlstring})::bigint",
           "format": "table",
           "rawQuery": true,
-          "editorMode": "code"
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Engine RPM') AS \"RPM / selected\"\nFROM samples s WHERE s.run_id = (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Engine RPM') AS \"RPM / reference\"\nFROM samples s WHERE s.run_id = (${reference:sqlstring})::bigint\nAND (${reference:sqlstring})::bigint <> (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:rpm",
+          "custom": {
+            "show": "lines",
+            "lineWidth": 2,
+            "pointSize": {
+              "fixed": 2
+            },
+            "axisWidth": 70,
+            "axisPlacement": "left",
+            "axisGridShow": true,
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Position"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "${axis:text}"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RPM / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FADE2A"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RPM / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
       "options": {
-        "showHeader": true
-      }
+        "mapping": "auto",
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "Position"
+              }
+            }
+          }
+        ],
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "pluginVersion": "13.2.3"
     },
     {
-      "id": 4,
-      "type": "table",
-      "title": "Available channels",
+      "id": 12,
+      "type": "xychart",
+      "title": "Throttle \u00b7 %",
       "datasource": {
         "type": "postgres",
         "uid": "osprey_csv"
       },
       "gridPos": {
-        "x": 12,
-        "y": 15,
-        "w": 12,
+        "x": 0,
+        "y": 13,
+        "w": 18,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Throttle Pos') AS \"Throttle / selected\"\nFROM samples s WHERE s.run_id = (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Throttle Pos') AS \"Throttle / reference\"\nFROM samples s WHERE s.run_id = (${reference:sqlstring})::bigint\nAND (${reference:sqlstring})::bigint <> (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "show": "lines",
+            "lineWidth": 2,
+            "pointSize": {
+              "fixed": 2
+            },
+            "axisWidth": 70,
+            "axisPlacement": "left",
+            "axisGridShow": true,
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Position"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "${axis:text}"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Throttle / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Throttle / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "Position"
+              }
+            }
+          }
+        ],
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "pluginVersion": "13.2.3"
+    },
+    {
+      "id": 13,
+      "type": "xychart",
+      "title": "Steering \u00b7 degrees",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 18,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Steering Angle') AS \"Steering / selected\"\nFROM samples s WHERE s.run_id = (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Steering Angle') AS \"Steering / reference\"\nFROM samples s WHERE s.run_id = (${reference:sqlstring})::bigint\nAND (${reference:sqlstring})::bigint <> (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "degree",
+          "custom": {
+            "show": "lines",
+            "lineWidth": 2,
+            "pointSize": {
+              "fixed": 2
+            },
+            "axisWidth": 70,
+            "axisPlacement": "left",
+            "axisGridShow": true,
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Position"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "${axis:text}"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Steering / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#B877D9"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Steering / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "Position"
+              }
+            }
+          }
+        ],
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "pluginVersion": "13.2.3"
+    },
+    {
+      "id": 14,
+      "type": "xychart",
+      "title": "Acceleration \u00b7 G",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 18,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'CG Accel Lateral') AS \"Lateral / selected\",\nmax(s.value) FILTER (WHERE s.channel = 'CG Accel Longitudinal') AS \"Longitudinal / selected\"\nFROM samples s WHERE s.run_id = (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'CG Accel Lateral') AS \"Lateral / reference\",\nmax(s.value) FILTER (WHERE s.channel = 'CG Accel Longitudinal') AS \"Longitudinal / reference\"\nFROM samples s WHERE s.run_id = (${reference:sqlstring})::bigint\nAND (${reference:sqlstring})::bigint <> (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:G",
+          "custom": {
+            "show": "lines",
+            "lineWidth": 2,
+            "pointSize": {
+              "fixed": 2
+            },
+            "axisWidth": 70,
+            "axisPlacement": "left",
+            "axisGridShow": true,
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Position"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "${axis:text}"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Lateral / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Lateral / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Longitudinal / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Longitudinal / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "Position"
+              }
+            }
+          }
+        ],
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "pluginVersion": "13.2.3"
+    },
+    {
+      "id": 15,
+      "type": "xychart",
+      "title": "Suspension \u00b7 mm",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 18,
         "h": 7
       },
       "targets": [
@@ -181,14 +925,537 @@
             "type": "postgres",
             "uid": "osprey_csv"
           },
-          "rawSql": "SELECT name AS channel, unit FROM channels WHERE run_id = (${run:sqlstring})::bigint ORDER BY name",
           "format": "table",
           "rawQuery": true,
-          "editorMode": "code"
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel FL') AS \"FL / selected\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel FR') AS \"FR / selected\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel RL') AS \"RL / selected\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel RR') AS \"RR / selected\"\nFROM samples s WHERE s.run_id = (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel FL') AS \"FL / reference\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel FR') AS \"FR / reference\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel RL') AS \"RL / reference\",\nmax(s.value) FILTER (WHERE s.channel = 'Damper Travel RR') AS \"RR / reference\"\nFROM samples s WHERE s.run_id = (${reference:sqlstring})::bigint\nAND (${reference:sqlstring})::bigint <> (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthmm",
+          "custom": {
+            "show": "lines",
+            "lineWidth": 2,
+            "pointSize": {
+              "fixed": 2
+            },
+            "axisWidth": 70,
+            "axisPlacement": "left",
+            "axisGridShow": true,
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Position"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "${axis:text}"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FL / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FL / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FR / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FADE2A"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FR / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RL / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RL / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RR / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RR / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "Position"
+              }
+            }
+          }
+        ],
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "pluginVersion": "13.2.3"
+    },
+    {
+      "id": 16,
+      "type": "xychart",
+      "title": "Extra channel \u00b7 ${channel:text}",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 18,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = ${channel:sqlstring}) AS \"Channel / selected\"\nFROM samples s WHERE s.run_id = (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT CASE WHEN ${axis:sqlstring} = 'distance' THEN max(s.value) FILTER (WHERE s.channel = 'Distance') ELSE s.elapsed_s - min(s.elapsed_s) OVER () END AS \"Position\",\nmax(s.value) FILTER (WHERE s.channel = ${channel:sqlstring}) AS \"Channel / reference\"\nFROM samples s WHERE s.run_id = (${reference:sqlstring})::bigint\nAND (${reference:sqlstring})::bigint <> (${run:sqlstring})::bigint\nGROUP BY s.elapsed_s ORDER BY s.elapsed_s",
+          "datasourceUid": "osprey_csv"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "show": "lines",
+            "lineWidth": 2,
+            "pointSize": {
+              "fixed": 2
+            },
+            "axisWidth": 70,
+            "axisPlacement": "left",
+            "axisGridShow": true,
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Position"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "${axis:text}"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Channel / selected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF7383"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Channel / reference"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F9DB8"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "Position"
+              }
+            }
+          }
+        ],
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "pluginVersion": "13.2.3"
+    },
+    {
+      "id": 20,
+      "type": "table",
+      "title": "Session details",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 3,
+        "w": 6,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT 'Run' AS \"Detail\", name AS \"Value\" FROM runs WHERE id=(${run:sqlstring})::bigint UNION ALL SELECT 'Start (UTC)', to_char(started_at AT TIME ZONE 'UTC','YYYY-MM-DD HH24:MI:SS') FROM runs WHERE id=(${run:sqlstring})::bigint UNION ALL SELECT 'Logger timezone',source_timezone FROM runs WHERE id=(${run:sqlstring})::bigint UNION ALL SELECT 'Sample rate',sample_rate::text || ' Hz' FROM runs WHERE id=(${run:sqlstring})::bigint UNION ALL SELECT key,value FROM runs r CROSS JOIN LATERAL jsonb_each_text(r.metadata) WHERE r.id=(${run:sqlstring})::bigint AND key IN ('Venue','Vehicle','Driver','Session','Comment')"
         }
       ],
       "options": {
-        "showHeader": true
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Selected run \u00b7 peak RPM",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 13,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT max(value) AS \"Peak RPM\" FROM samples WHERE run_id=(${run:sqlstring})::bigint AND channel='Engine RPM'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:rpm",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 9000.000001
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 22,
+      "type": "table",
+      "title": "Channels \u00b7 min / max / average",
+      "datasource": {
+        "type": "postgres",
+        "uid": "osprey_csv"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 17,
+        "w": 6,
+        "h": 15
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "osprey_csv"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT c.name AS \"Channel\",c.unit AS \"Unit\",round(min(s.value)::numeric,2)::double precision AS \"Min\",round(max(s.value)::numeric,2)::double precision AS \"Max\",round(avg(s.value)::numeric,2)::double precision AS \"Avg\" FROM channels c LEFT JOIN samples s ON s.run_id=c.run_id AND s.channel=c.name WHERE c.run_id=(${run:sqlstring})::bigint GROUP BY c.name,c.unit ORDER BY c.name"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 23,
+      "type": "text",
+      "title": "Reading the traces",
+      "gridPos": {
+        "x": 18,
+        "y": 32,
+        "w": 6,
+        "h": 11
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Time**\nElapsed seconds from the first sample of each run.\n\n**Distance**\nOriginal CSV Distance in metres. A run needs a Distance channel for this view.\n\n**Compare**\nSelect a second imported run to overlay gray traces. Import another CSV to enable a meaningful comparison.\n\n**Channels**\nThe fixed traces use the sample's MoTeC names. Use Extra channel for other names; its units are shown in the selector.\n\n**Interaction**\nHover a trace for values. Grafana XY charts have independent cursors and zoom; linked MoTeC cursors and lap comparisons aren't included."
       }
     }
   ]
