@@ -24,5 +24,20 @@ class ParserTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "expected 2 values"):
                 read_motec(path)
 
+    def test_time_first_us_export_preserves_explicit_timing(self):
+        base = ('Format,MoTeC CSV File\nLog Date,9/15/2026\nLog Time,5:17:19 PM\n'
+                'Sample Rate,50\nStart Time,12\n\nTime,Engine RPM,Ground Speed\n'
+                's,rpm,km/h\n\n12.000,8000,40\n12.030,9200,45\n')
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "run.csv"
+            path.write_text(base)
+            run = read_motec(path)
+            self.assertEqual(run["started_at"].isoformat(), "2026-09-15T21:17:19+00:00")
+            self.assertEqual([row[0] for row in run["samples"]], [12, 12.03])
+            self.assertEqual(run["samples"][0][1].isoformat(), "2026-09-15T21:17:31+00:00")
+            path.write_text(base + "12.030,8500,42\n")
+            with self.assertRaisesRegex(ValueError, "strictly increasing"):
+                read_motec(path)
+
 if __name__ == "__main__":
     unittest.main()

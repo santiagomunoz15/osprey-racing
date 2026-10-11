@@ -9,7 +9,7 @@ Horizontal axis switches between elapsed seconds and the original CSV Distance i
 Time is aligned to each run's first sample. Graphs show complete runs independently of the global time picker.
 Choose Compare with to overlay a second imported run in gray. None disables the reference.
 Reference traces use their own first sample in time mode and original Distance in distance mode.
-There is no lap segmentation, distance resampling, or automatic lap alignment.
+Trace comparisons remain whole-run overlays; distance resampling and automatic lap alignment are not included.
 
 The fixed traces use the demonstration MoTeC channel names. Different export names may leave a trace empty;
 use Extra channel or adapt the dashboard's channel names after confirming the car's export format.
@@ -17,3 +17,10 @@ Grafana XY charts have independent cursors and zoom; they do not provide MoTeC's
 
 The dashboard UID and recorded-run alert are unchanged. The peak-RPM card shows the selected run;
 the recorded-run alert independently checks the latest stored run by recorded start time.
+## Lap durations
+
+The lap table uses Lap Number transitions and elapsed seconds to calculate completed-lap durations.
+Opening and closing segments are conservatively marked Partial, without a full-lap duration.
+Lap Invalidated flags a completed lap as Invalid; the best-lap card excludes invalid laps.
+Timing is approximate to the recording sample interval (0.02 seconds at 50 Hz).
+Runs without Lap Number show no lap rows. Lap Time remains available in Extra channel.
