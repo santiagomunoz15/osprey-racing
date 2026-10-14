@@ -27,6 +27,9 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+      INFLUX_DB_API_TOKEN: ${INFLUX_DB_API_TOKEN:-}
+      INFLUX_ORG: ${INFLUX_ORG:-osprey-racing}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-telemetry-test}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./config/grafana/provisioning:/etc/grafana/provisioning:ro

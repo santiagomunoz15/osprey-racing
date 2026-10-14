@@ -9,8 +9,12 @@ description = "Recorded and live telemetry tools for Osprey Racing"
 requires-python = ">=3.10"
 dependencies = ["psycopg[binary]>=3.2,<4", "tzdata>=2025.1"]
 
+[project.optional-dependencies]
+live = ["pyserial>=3.5,<4"]
+
 [project.scripts]
 osprey-import = "osprey_telemetry.import_csv:main"
+osprey-receive = "osprey_telemetry.live.usb_receiver:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

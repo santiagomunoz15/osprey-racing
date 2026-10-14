@@ -1,7 +1,8 @@
 # Osprey Racing telemetry
 
 Recorded runs: MoTeC CSV -> Python importer -> PostgreSQL -> Grafana.
-Planned live telemetry: car -> receiver -> InfluxDB -> Grafana.
+Live telemetry: car -> receiving ESP32 -> USB Python receiver -> InfluxDB -> Grafana.
+See [USB receiver setup and tests](docs/usb-receiver.md).
 
 ## Start
 
