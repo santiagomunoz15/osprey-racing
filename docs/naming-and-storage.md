@@ -17,8 +17,8 @@ Keep original CSV contents unchanged. Put derived exports in data/processed/ wit
 and a descriptive suffix, such as _filtered.csv.
 
 Copy docs/session-notes-template.md into each event directory as session-notes.md.
-Raw and processed event folders are ignored by Git. Store complete recordings and session notes in
-shared team storage with backups. Keep code, configuration, docs, and small shareable examples in Git.
+Raw and processed event folders can be committed to the private team repository.
+Keep backups of complete recordings and session notes in shared team storage as well.
 Never commit .env, API tokens, or database backups.
 The supplied bristol.csv retains its original vendor/sample name under data/examples/.
 
