@@ -4,7 +4,7 @@ datasources:
     uid: osprey_usb
     type: influxdb
     access: proxy
-    url: http://influxdb-test:8086
+    url: http://influxdb:8086
     editable: false
     jsonData:
       version: Flux

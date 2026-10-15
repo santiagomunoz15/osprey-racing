@@ -15,8 +15,9 @@ Keep INFLUX_DB_API_TOKEN in .env. INFLUX_DB_API is also accepted for older setup
 Defaults are http://127.0.0.1:8086, organization osprey-racing, bucket telemetry-test.
 Override with INFLUX_URL, INFLUX_ORG, INFLUX_BUCKET or --url, --org, --bucket.
 Use a token with write permission for the chosen bucket. Keep credentials out of Git.
-The receiver does not create buckets. The existing telemetry-test bucket expires data after one day.
-Choose a team-approved bucket/retention before recording real testing sessions.
+Run `python scripts/setup-env.py`, then `docker compose up -d influxdb postgres grafana`.
+On first startup, InfluxDB creates the configured organization and bucket. The local bucket has no
+automatic expiry. Its data is stored in persistent Docker volumes; do not use `docker compose down -v`.
 
 ## Test without hardware
 
@@ -69,9 +70,8 @@ For a visible one-minute test, run:
 python scripts/receive-usb.py --simulate --samples 3000 --rate 50
 ```
 
-Start the existing influxdb-test container with docker start influxdb-test and run
-docker compose up -d postgres grafana to load the provisioned USB telemetry data source.
-The InfluxDB container must share the osprey-telemetry_default Docker network.
+Run `docker compose up -d influxdb postgres grafana` to start the database and dashboard.
+Compose puts both services on the same network; Grafana connects to `http://influxdb:8086`.
 INFLUX_DB_API_TOKEN needs read permission for Grafana and write permission for the receiver.
 On another computer, configure its own .env and InfluxDB instance; Git does not transfer credentials
 or Docker volumes. The new dashboard and data-source files do transfer through Git.

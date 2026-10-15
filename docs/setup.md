@@ -51,10 +51,11 @@ Pin tested image versions before a team deployment.
 
 ## InfluxDB transition and phone access
 
-InfluxDB is the planned live database. config/influxdb/ is reserved for configuration;
-this reorganization does not install a database or receiver.
+Run `python scripts/setup-env.py` to add missing local credentials, then
+`docker compose up -d influxdb postgres grafana` for live USB telemetry.
+InfluxDB uses persistent volumes and initializes its bucket without automatic expiry.
+Existing database credentials are preserved; changing .env does not rotate database credentials.
 The old Prometheus service and data-source configuration are retained for compatibility.
-An independently created influxdb-test container is outside this Compose file.
 
 Grafana initially binds to localhost. To enable private LAN access later, change its port mapping
 to 3000:3000 and permit port 3000 on the private-network firewall. A phone can then visit
