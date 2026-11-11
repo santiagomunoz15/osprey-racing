@@ -47,12 +47,12 @@
     {
       "id": 1,
       "type": "text",
-      "title": "Live receiver",
+      "title": "README",
       "gridPos": {
         "x": 0,
         "y": 0,
         "w": 24,
-        "h": 3
+        "h": 4
       },
       "options": {
         "mode": "markdown",
@@ -61,7 +61,7 @@
     },
     {
       "id": 2,
-      "title": "Throttle \u00c2\u00b7 latest",
+      "title": "Throttle (%)",
       "type": "stat",
       "pluginVersion": "13.2.3",
       "datasource": {
@@ -92,7 +92,7 @@
           "noValue": "No recent data",
           "color": {
             "mode": "fixed",
-            "fixedColor": "#FF9830"
+            "fixedColor": "#F45B26"
           },
           "custom": {
             "drawStyle": "line",
@@ -118,7 +118,7 @@
     },
     {
       "id": 3,
-      "title": "Brake pressure \u00c2\u00b7 latest (raw)",
+      "title": "Brake pressure (kpa)",
       "type": "stat",
       "pluginVersion": "13.2.3",
       "datasource": {
@@ -147,7 +147,7 @@
           "noValue": "No recent data",
           "color": {
             "mode": "fixed",
-            "fixedColor": "#5794F2"
+            "fixedColor": "#03AED2"
           },
           "custom": {
             "drawStyle": "line",
@@ -173,7 +173,7 @@
     },
     {
       "id": 4,
-      "title": "Throttle \u00c2\u00b7 %",
+      "title": "Throttle (%)",
       "type": "timeseries",
       "pluginVersion": "13.2.3",
       "datasource": {
@@ -183,7 +183,7 @@
       "gridPos": {
         "x": 0,
         "y": 7,
-        "w": 24,
+        "w": 12,
         "h": 9
       },
       "targets": [
@@ -228,7 +228,7 @@
     },
     {
       "id": 5,
-      "title": "Brake pressure \u00c2\u00b7 raw",
+      "title": "Brake pressure (raw)",
       "type": "timeseries",
       "pluginVersion": "13.2.3",
       "datasource": {
@@ -236,9 +236,9 @@
         "uid": "osprey_usb"
       },
       "gridPos": {
-        "x": 0,
-        "y": 16,
-        "w": 24,
+        "x": 12,
+        "y": 7,
+        "w": 12,
         "h": 9
       },
       "targets": [

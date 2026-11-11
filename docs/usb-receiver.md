@@ -99,7 +99,54 @@ fills, new measurements are dropped and the count is logged. Malformed and overs
 The startup/session and batch/final counters show received, invalid, dropped, and written measurements.
 Dry-run written means printed, not stored. A lost response may cause a safe retry of an already-written point.
 
-This first receiver keeps its queue in memory. Closing it, Ctrl+C, or losing power can lose unwritten points;
-shutdown reports their count. It is not a durable offline logger. HTTP writes have a 5-second timeout.
+The upload queue is in memory, but complete received messages are recorded locally before enqueueing.
+Shutdown reports unsent queued points; use recording replay to recover them. HTTP writes have a 5-second timeout.
 Measured synthetic throughput does not establish the real radio/USB performance. Test with the hardware
 at its actual rate before a car session. Future work includes disk buffering and sensor-side timing.
+
+## Local recordings and recovery
+
+The receiver now saves every complete decoded serial message to a new JSONL file under
+`data/recordings/` **before** queuing a valid measurement for InfluxDB. Each append is flushed
+and synced to disk. The startup log prints the filename. Files are ignored by Git and never
+overwritten. They contain a session header, original message text, receipt timestamps, and the
+exact database points; invalid complete messages are retained with a null point.
+
+Record and upload together:
+
+```sh
+python scripts/receive-usb.py --port /dev/cu.usbserial-1430 --session shop-test-001
+```
+
+Choose a filename or record without a running database/token:
+
+```sh
+python scripts/receive-usb.py --port /dev/cu.usbserial-1430 --session shop-test-002 --record data/recordings/shop-test-002.jsonl --local-only
+```
+
+`--dry-run` still prints instead of uploading, but now also records locally. Simulation is
+recorded with `source=simulation`. Use a fresh session name for each run.
+
+Validate and print a recording, then upload/recover it:
+
+```sh
+python scripts/replay-usb.py data/recordings/shop-test-002.jsonl --dry-run
+python scripts/replay-usb.py data/recordings/shop-test-002.jsonl
+```
+
+Replay validates the entire file before sending any data. It preserves original timestamps,
+source, device, and session, so re-uploading the same points to the same bucket is safe.
+It uploads in batches rather than replaying at the original speed; `--interval 1` pauses one
+second between batches. To see historical uploads, select the original run's date/time range
+in Grafana. Replaying old data does not make the live latest-reading cards current.
+
+During database outages the USB reader keeps saving locally. If the upload queue fills,
+`dropped` counts measurements skipped for live upload, not deleted from the recording.
+After Ctrl+C or a failed upload, replay the file to recover all recorded valid points.
+Disk write failures stop capture with an error rather than silently continuing without a recording.
+
+Files are local backups, not protection against laptop/disk loss: copy completed runs to team
+storage. Partial serial lines at disconnect/shutdown and oversized lines rejected by the framer
+are not recorded. Disk synchronization can limit capture throughput and cannot recover packets
+lost before Python receives them. Test the real hardware rate. A damaged/truncated JSONL file
+is rejected by replay; preserve the original before repairing a copy.

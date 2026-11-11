@@ -47,3 +47,9 @@ python scripts/import-run.py data/raw/2026/2026-10-11_unf-testing/2026-10-11_143
 
 The filename is for organization; the importer reads timing from CSV metadata and --timezone.
 Duplicate detection uses file contents and timezone, so moving or renaming a CSV does not duplicate it.
+
+## CAN3 channels
+
+The 27-channel CAN3 dashboard is at http://localhost:3000/d/osprey-can3.
+See [CAN3 capture and decoding status](docs/can3.md) for the channel map, USB frame
+format, simulation command, and pending engineering conversions.

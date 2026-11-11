@@ -1,4 +1,5 @@
 """Read ESP32 USB messages and batch brake/throttle measurements into InfluxDB."""
+from .recording import Recording
 import argparse
 import logging
 import math
@@ -71,6 +72,9 @@ def tag(value):
 
 
 def make_point(line, timestamp_ns, device, source, session):
+    if line.lstrip().startswith("{") or re.match(r"^\s*(?:[0-9A-Fa-f]{3}/\d+\s|ID:\s*0x)", line):
+        from .can3 import make_can3_point
+        return make_can3_point(line, timestamp_ns, device, source, session)
     pressure, throttle = parse_message(line)
     return (f"vehicle,device={tag(device)},source={tag(source)},session={tag(session)} "
             f"brake_pressure_raw={pressure},throttle_pct={throttle} {timestamp_ns}")
@@ -98,7 +102,7 @@ class InfluxWriter:
             raise RuntimeError("InfluxDB connection failed") from None
 
 
-def collect(args, inbox, stop, stats):
+def collect(args, inbox, stop, stats, recording=None):
     """USB reads continue in this thread while the main thread writes batches."""
     last_timestamp = 0
 
@@ -109,21 +113,32 @@ def collect(args, inbox, stop, stats):
         try:
             point = make_point(line, timestamp, args.device, args.source, args.session)
         except ValueError:
+            point = None
+        if recording is not None:
+            recording.append({"type": "sample", "timestamp_ns": timestamp,
+                              "raw": line, "point": point})
+        if point is None:
             stats["invalid"] += 1
             return
         stats["received"] += 1
+        if args.local_only:
+            return
         try:
             inbox.put_nowait(point)
         except queue.Full:
             stats["dropped"] += 1
-            LOG.error("Receiver queue full; dropped measurements=%d", stats["dropped"])
+            LOG.error("Upload queue full; locally saved measurements skipped for upload=%d", stats["dropped"])
 
     if args.simulate:
         deadline = time.monotonic()
         for index in range(args.samples):
             if stop.is_set():
                 break
-            accept(f"Received Data -> Brake Pressure: {index % 20 / 10} | Throttle: {index % 101}%")
+            if getattr(args, "protocol", "legacy") == "can3":
+                import json
+                accept(json.dumps({"can_id": int(str(index % 27 + 1), 16), "data": f"{index % 65536:04x}"}))
+            else:
+                accept(f"Received Data -> Brake Pressure: {index % 20 / 10} | Throttle: {index % 101}%")
             deadline += 1 / args.rate
             stop.wait(max(0, deadline - time.monotonic()))
         return
@@ -139,7 +154,7 @@ def collect(args, inbox, stop, stats):
                     if framer.discarded:
                         stats["invalid"] += framer.discarded
                         framer.discarded = 0
-        except (serial.SerialException, OSError):
+        except serial.SerialException:
             LOG.warning("USB unavailable; reconnecting in 2 seconds")
             stop.wait(2)
 
@@ -147,12 +162,16 @@ def collect(args, inbox, stop, stats):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", help="Windows COM port or macOS /dev/cu.usbserial-* path")
+    parser.add_argument("--protocol", choices=("legacy", "can3"), default="legacy",
+                        help="Simulation format; USB automatically accepts legacy text and CAN3 JSON")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--list-ports", action="store_true")
     parser.add_argument("--simulate", action="store_true", help="Generate messages without an ESP32")
     parser.add_argument("--samples", type=int, default=100)
     parser.add_argument("--rate", type=float, default=50, help="Simulation messages per second")
     parser.add_argument("--dry-run", action="store_true", help="Print measurements without database writes")
+    parser.add_argument("--record", type=Path, help="New JSONL recording path (never overwritten)")
+    parser.add_argument("--local-only", action="store_true", help="Record without InfluxDB")
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--url")
     parser.add_argument("--org")
@@ -191,23 +210,39 @@ def main():
         tag(value)
     load_env(args.env_file)
     token = os.getenv("INFLUX_DB_API_TOKEN") or os.getenv("INFLUX_DB_API")
-    if not args.dry_run and not token:
+    if not args.dry_run and not args.local_only and not token:
         parser.error("Set INFLUX_DB_API_TOKEN in .env (never pass tokens on the command line)")
-    writer = None if args.dry_run else InfluxWriter(
+    writer = None if args.dry_run or args.local_only else InfluxWriter(
         args.url or os.getenv("INFLUX_URL", "http://127.0.0.1:8086"),
         args.org or os.getenv("INFLUX_ORG", "osprey-racing"),
         args.bucket or os.getenv("INFLUX_BUCKET", "telemetry-test"), token)
     inbox = queue.Queue(maxsize=args.queue_size)
     stop = threading.Event()
     stats = {"received": 0, "invalid": 0, "dropped": 0, "written": 0}
-    reader = threading.Thread(target=collect, args=(args, inbox, stop, stats), daemon=True)
+    path = args.record or Path("data/recordings") / (str(time.time_ns()) + ".jsonl")
+    try:
+        recording = Recording(path, {"session": args.session, "device": args.device,
+                                    "source": args.source, "started_at_ns": time.time_ns(),
+                                    "port": args.port, "baud": args.baud})
+    except OSError as error:
+        parser.error(f"Cannot create recording: {error}")
+    LOG.info("Local recording: %s", path)
+    failures = []
+    def run_reader():
+        try:
+            collect(args, inbox, stop, stats, recording)
+        except Exception as error:
+            failures.append(error)
+            stop.set()
+            LOG.error("Recording/reader failed; stopping capture: %s", error)
+    reader = threading.Thread(target=run_reader)
     reader.start()
     pending = []
     last_flush = time.monotonic()
     started = last_flush
     LOG.info("Session: %s; source: %s", args.session, args.source)
     try:
-        while reader.is_alive() or not inbox.empty() or pending:
+        while not failures and (reader.is_alive() or not inbox.empty() or pending):
             try:
                 pending.append(inbox.get(timeout=0.1))
             except queue.Empty:
@@ -222,7 +257,7 @@ def main():
                         LOG.error("%s; retaining batch and retrying in 2 seconds", error)
                         stop.wait(2)
                         # Leave queued points in the bounded inbox while retrying this batch.
-                        while True:
+                        while not stop.is_set():
                             try:
                                 writer.write(pending)
                                 break
@@ -232,6 +267,8 @@ def main():
                 else:
                     for point in pending:
                         print(point)
+                if failures:
+                    break
                 stats["written"] += len(pending)
                 pending.clear()
                 last_flush = time.monotonic()
@@ -241,9 +278,13 @@ def main():
         LOG.info("Stopping; unwritten queued points=%d", inbox.qsize() + len(pending))
     finally:
         stop.set()
-        reader.join(timeout=2)
+        reader.join()
+        recording.close()
         LOG.info("Final: received=%d invalid=%d dropped=%d written=%d elapsed=%.2fs",
                  *stats.values(), time.monotonic() - started)
+        LOG.info("Recording retained at %s; replay it to recover unsent measurements", path)
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

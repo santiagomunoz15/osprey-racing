@@ -1,0 +1,2487 @@
+{
+  "uid": "osprey-can3",
+  "title": "Osprey Racing - CAN3",
+  "schemaVersion": 39,
+  "version": 15,
+  "editable": true,
+  "tags": [
+    "osprey-racing",
+    "can3"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "refresh": "1s",
+  "templating": {
+    "list": [
+      {
+        "name": "source",
+        "label": "Input",
+        "type": "custom",
+        "query": "USB receiver : usb,Simulation : simulation",
+        "current": {
+          "text": "USB receiver",
+          "value": "usb"
+        },
+        "multi": false,
+        "includeAll": false
+      },
+      {
+        "name": "encoding",
+        "label": "Unscaled channel interpretation",
+        "type": "custom",
+        "query": "Signed big-endian : signed_be,Unsigned big-endian : unsigned_be",
+        "current": {
+          "text": "Signed big-endian",
+          "value": "signed_be"
+        },
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "CAN3 capture status",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Live CAN3 \u00b7 1-second refresh.** Battery, coolant temperature, G forces, steering and suspension use dash-comparison conversions. Pressure, oil temperature, lambda, throttle and wheel-speed readings use **provisional raw \u00f7 10**, as agreed; adjust after reference checks. RPM, fuel level and yaw remain labeled raw pending scaling. Gear 0 = N. G-force graph range: 0\u20133 G. Original raw readings remain stored in InfluxDB; latest cards expire after 5 seconds. Fuel pressure now uses provisional raw \u00f7 100."
+      }
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Engine and power",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 3,
+      "title": "Battery Volts \u00b7 0x001",
+      "description": "1293 counts versus approximately 12.9 V on dash. Original raw data is retained in InfluxDB. Sensor note: ; dash note: 12.9",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"1\" and r.source == \"${source}\" and r._field == \"unsigned_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "Battery Volts"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Coolant Pressure \u00b7 0x004 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: psi. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 10,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"4\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurepsi",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Coolant Pressure"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Coolant Temperature \u00b7 0x005",
+      "description": "230 counts = 23 degrees C. Original raw data is retained in InfluxDB. Sensor note: 230 (23 degrees C); dash note: ",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 10,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"5\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.1}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Coolant Temperature"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Oil Pressure & Temperature \u00b7 provisional scaling",
+      "description": "Oil pressure: signed raw /10 in psi, left axis. Oil temperature: signed raw /10 in \u00b0F, right axis. Both conversions are provisional. Original raw readings remain stored. Oil temperature thresholds in \u00b0F: yellow below 20, green from 20 to below 100, red at 100 and above.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 16,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "Pressure",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"6\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "Temperature",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"7\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false,
+            "drawStyle": "line",
+            "lineWidth": 3,
+            "gradientMode": "scheme",
+            "lineInterpolation": "linear"
+          },
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "Pressure"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Oil pressure"
+              },
+              {
+                "id": "unit",
+                "value": "pressurepsi"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "Oil pressure (psi)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              },
+              {
+                "id": "custom.gradientMode",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "Temperature"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Oil temperature"
+              },
+              {
+                "id": "unit",
+                "value": "fahrenheit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "Oil temperature (\u00b0F)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "yellow",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 20
+                    },
+                    {
+                      "color": "red",
+                      "value": 100
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.gradientMode",
+                "value": "scheme"
+              },
+              {
+                "id": "custom.thresholdsStyle",
+                "value": {
+                  "mode": "line"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "RPM \u00b7 0x008 \u00b7 raw; scaling pending",
+      "description": "Nonzero raw/dash pair or MoTeC transmit conversion required; workbook unit: RPM. Original raw data is retained in InfluxDB. Sensor note: 0.0; dash note: 0.0 RPM trace turns red at the 9,000 threshold; threshold line shown. Threshold uses current raw RPM counts (1 count assumed to equal 1 RPM).",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 17,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"8\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "spanNulls": false,
+            "gradientMode": "scheme",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "decimals": 0,
+          "displayName": "RPM (raw)",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 9000
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "Brakes and driver controls",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 10,
+      "title": "Front Brake \u00b7 0x002 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: psi. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"2\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurepsi",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Front Brake"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Rear Brake \u00b7 0x003 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: psi. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 25,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"3\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurepsi",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Rear Brake"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Gear \u00b7 0x015",
+      "description": "Integer gear; workbook specifies neutral=0 and gears 0\u20134. Original raw data is retained in InfluxDB. Sensor note: 0.0; dash note: Car in Neutral (Gears 0-4)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 25,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"21\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 1.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 0,
+          "displayName": "Gear",
+          "min": 0,
+          "max": 4,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "N"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Steering Wheel Angle \u00b7 0x016",
+      "description": "-37 counts = -3.7 degrees. Original raw data is retained in InfluxDB. Sensor note: -37.0; dash note: -3.7",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"22\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.1}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "degree",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Steering Wheel Angle"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Steered Angle \u00b7 0x017",
+      "description": "-1198 counts = -119.8 degrees. Original raw data is retained in InfluxDB. Sensor note: -1198.0; dash note: -119.8",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 32,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"23\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.1}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "degree",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Steered Angle"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Throttle \u00b7 0x022 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: %. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 32,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"34\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Throttle",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "row",
+      "title": "Fuel and combustion",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 17,
+      "title": "Lambda \u00b7 0x009 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: Ratio. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"9\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: \u03bb",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "Lambda"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "Fuel Pressure \u00b7 0x010 \u00b7 provisional \u00f7100",
+      "description": "User-selected provisional raw / 100 after engine-off display was 94.6 psi at /10; needs reference verification. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 40,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"16\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 100.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurepsi",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "Fuel Pressure"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "title": "Fuel Level \u00b7 0x011 \u00b7 raw; scaling pending",
+      "description": "Nonzero raw/dash pair or MoTeC transmit conversion required; workbook unit: unconfirmed. Original raw data is retained in InfluxDB. Sensor note: 0.0; dash note: ",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 40,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"17\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 0,
+          "displayName": "Fuel Level (raw)"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Vehicle dynamics",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 21,
+      "title": "G Force Lat \u00b7 0x012",
+      "description": "1 count = 0.01 G. Original raw data is retained in InfluxDB. Sensor note: 1.0; dash note: 0.01",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"18\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: G",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "G Force Lat",
+          "min": 0,
+          "max": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "G Force Long \u00b7 0x013",
+      "description": "14 counts = 0.14 G. Original raw data is retained in InfluxDB. Sensor note: 14 (1.4 i guess); dash note: 0.14",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 48,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"19\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: G",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "G Force Long",
+          "min": 0,
+          "max": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "title": "G Force Vert \u00b7 0x014",
+      "description": "101 counts = 1.01 G. Original raw data is retained in InfluxDB. Sensor note: 101.0; dash note: 1.01",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 48,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"20\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: G",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "G Force Vert",
+          "min": 0,
+          "max": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "title": "Yaw Rate \u00b7 0x023 \u00b7 raw; scaling pending",
+      "description": "Nonzero raw/dash pair or MoTeC transmit conversion required; workbook unit: unconfirmed. Original raw data is retained in InfluxDB. Sensor note: 0.0; dash note: ??",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"35\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 0,
+          "displayName": "Yaw Rate (raw)"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 25,
+      "type": "row",
+      "title": "Suspension",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 62,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 26,
+      "title": "Sus Pos FL (mm) \u00b7 0x018",
+      "description": "Workbook comparisons imply hundredths of mm; readings were not identical snapshots, confirm side by side. Original raw data is retained in InfluxDB. Sensor note: 231.0; dash note: 2.35",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 63,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"24\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: mm",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "Sus Pos FL",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#5794F2"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "title": "Sus Pos FR (mm) \u00b7 0x019",
+      "description": "Workbook comparisons imply hundredths of mm; readings were not identical snapshots, confirm side by side. Original raw data is retained in InfluxDB. Sensor note: 212.0; dash note: 2.14",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 63,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"25\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: mm",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "Sus Pos FR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#FF9830"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "title": "Sus Pos RL (mm) \u00b7 0x020",
+      "description": "Workbook comparisons imply hundredths of mm; readings were not identical snapshots, confirm side by side. Original raw data is retained in InfluxDB. Sensor note: -50.0; dash note: -0.52",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 63,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"32\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: mm",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "Sus Pos RL",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#73BF69"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "title": "Sus Pos RR (mm) \u00b7 0x021",
+      "description": "Workbook comparisons imply hundredths of mm; readings were not identical snapshots, confirm side by side. Original raw data is retained in InfluxDB. Sensor note: 5.0; dash note: 0.05",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 70,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"33\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: mm",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "displayName": "Sus Pos RR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#B877D9"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Wheel speeds",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 77,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 31,
+      "title": "Wheel Speed FL \u00b7 0x024 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: m/s. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 78,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"36\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: m/s",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Wheel Speed FL",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#5794F2"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 32,
+      "title": "Wheel Speed FR \u00b7 0x025 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: m/s. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 78,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"37\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: m/s",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Wheel Speed FR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#FF9830"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 33,
+      "title": "Wheel Speed RL \u00b7 0x026 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: m/s. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 78,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"38\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: m/s",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Wheel Speed RL",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#73BF69"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 34,
+      "title": "Wheel Speed RR \u00b7 0x027 \u00b7 provisional \u00f710",
+      "description": "User-selected provisional raw / 10; adjust after reference comparison. Display unit: m/s. Original raw data is retained.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 85,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"39\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: m/s",
+          "custom": {
+            "spanNulls": false
+          },
+          "decimals": 1,
+          "displayName": "Wheel Speed RR",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#B877D9"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 1000,
+      "title": "Latest readings \u00b7 engineering units where established \u00b7 last 5 seconds",
+      "type": "stat",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "osprey_usb"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "C1",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"1\" and r.source == \"${source}\" and r._field == \"unsigned_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C4",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"4\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C5",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"5\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.1}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C6",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"6\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C7",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"7\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C8",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"8\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C2",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"2\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C3",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"3\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C21",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"21\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 1.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C22",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"22\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.1}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C23",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"23\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.1}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C34",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"34\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C9",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"9\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C16",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"16\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 100.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C17",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"17\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C18",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"18\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C19",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"19\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C20",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"20\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C35",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"35\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C24",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"24\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C25",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"25\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C32",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"32\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C33",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"33\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 0.01}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C36",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"36\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C37",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"37\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C38",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"38\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        },
+        {
+          "refId": "C39",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "osprey_usb"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"39\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 10.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No recent data"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C1"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "volt"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "Battery Volts"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C4"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "pressurepsi"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Coolant Pressure (\u00f710 provisional)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C5"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Coolant Temperature"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C6"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "pressurepsi"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Oil Pressure (\u00f710 provisional)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C7"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "fahrenheit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Oil Temperature (\u00f710 provisional)"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "yellow",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 20
+                    },
+                    {
+                      "color": "red",
+                      "value": 100
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C8"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "displayName",
+                "value": "RPM (raw)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C2"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "pressurepsi"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Front Brake (\u00f710 provisional)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C3"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "pressurepsi"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Rear Brake (\u00f710 provisional)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C21"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "displayName",
+                "value": "Gear"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "N"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C22"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Steering Wheel Angle"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C23"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "degree"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Steered Angle"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C34"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Throttle (\u00f710 provisional)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C9"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: \u03bb"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "Lambda (\u00f710 provisional)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C16"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "pressurepsi"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "Fuel Pressure (\u00f7100 provisional)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C17"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "displayName",
+                "value": "Fuel Level (raw)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C18"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: G"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "G Force Lat"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C19"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: G"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "G Force Long"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C20"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: G"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "G Force Vert"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C35"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "displayName",
+                "value": "Yaw Rate (raw)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C24"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: mm"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "Sus Pos FL"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C25"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: mm"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "Sus Pos FR"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C32"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: mm"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "Sus Pos RL"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C33"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: mm"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "displayName",
+                "value": "Sus Pos RR"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#B877D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C36"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: m/s"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Wheel Speed FL (\u00f710 provisional)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C37"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: m/s"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Wheel Speed FR (\u00f710 provisional)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C38"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: m/s"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Wheel Speed RL (\u00f710 provisional)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C39"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: m/s"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "displayName",
+                "value": "Wheel Speed RR (\u00f710 provisional)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#B877D9"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "value"
+      }
+    }
+  ],
+  "timepicker": {
+    "refresh_intervals": [
+      "1s",
+      "2s",
+      "5s",
+      "10s",
+      "30s",
+      "1m"
+    ]
+  }
+}
