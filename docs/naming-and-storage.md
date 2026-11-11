@@ -20,7 +20,7 @@ Copy docs/session-notes-template.md into each event directory as session-notes.m
 Raw and processed event folders can be committed to the private team repository.
 Keep backups of complete recordings and session notes in shared team storage as well.
 Never commit .env, API tokens, or database backups.
-The supplied bristol.csv retains its original vendor/sample name under data/examples/.
+The demonstration run has been removed from the dashboard and example-data directory.
 
 ## Other names
 

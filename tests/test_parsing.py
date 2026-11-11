@@ -7,7 +7,7 @@ from osprey_telemetry.parsers.motec import read_motec
 
 class ParserTests(unittest.TestCase):
     def test_sample_preserves_rate_units_and_time(self):
-        run = read_motec(Path(__file__).resolve().parents[1] / "data" / "examples" / "bristol.csv")
+        run = read_motec(Path(__file__).resolve().parent / "fixtures" / "motec.csv")
         self.assertEqual(run["sample_rate"], 50)
         self.assertEqual(len(run["channels"]), 11)
         self.assertEqual(run["units"][1], "rpm")

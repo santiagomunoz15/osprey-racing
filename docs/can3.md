@@ -139,3 +139,29 @@ divided by 100, matching the workbook comparisons. Their display range is 0–3 
 with two decimals. Negative and above-range values remain stored without clipping;
 negative values fall below the requested graph range. Recent-value cards convert
 these same three channels to G while the remaining channels still show raw counts.
+
+## Start and stop a named run
+
+Close Arduino Serial Monitor. With the ESP32 connected, from the project root:
+
+```sh
+.venv/bin/python scripts/start-can3.py --port /dev/cu.usbserial-1410 --session 2026-11-11_shop_run-002
+```
+
+Use a fresh session name for each run and the detected USB port. Keep that
+Terminal open while recording. The receiver prints its local JSONL recording
+path and received/written counters. Press Ctrl+C in that Terminal to stop capture;
+Grafana and InfluxDB remain running and their saved data remains available.
+If shutdown reports unwritten points, recover the entire recording safely with:
+
+```sh
+.venv/bin/python scripts/replay-usb.py data/recordings/RECORDING_FILENAME.jsonl
+```
+
+Replay preserves original timestamps and session identity. In Recorded Runs,
+click a saved session to load its absolute date/time range. Historical cards
+follow that selected range. Live CAN3 has only the USB/Simulation input selector.
+Starting/stopping a receiver session does not erase previous runs.
+InfluxDB is a database, while JSONL recordings are files saved separately.
+Copy completed backups to team storage or another drive for protection against
+loss of the laptop. Local backups alone are on the same disk as the originals.

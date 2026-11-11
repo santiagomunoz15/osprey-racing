@@ -5,7 +5,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 if len(sys.argv) < 2:
-    raise SystemExit("Usage: python scripts/import-run.py data/examples/bristol.csv [--timezone America/New_York]")
+    raise SystemExit("Usage: python scripts/import-run.py data/raw/YOUR_RUN.csv [--timezone America/New_York]")
 source = (Path.cwd() / sys.argv[1]).resolve()
 data = (root / "data").resolve()
 if not source.is_file() or not source.is_relative_to(data):

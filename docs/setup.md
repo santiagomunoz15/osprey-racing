@@ -8,7 +8,7 @@ Run commands from the project root:
 python scripts/setup-env.py
 docker compose config --quiet
 docker compose up -d postgres grafana
-docker compose run --rm --build importer /data/examples/bristol.csv --timezone America/New_York
+docker compose run --rm --build importer /data/raw/YOUR_RUN.csv --timezone America/New_York
 ```
 
 Alternatively, python scripts/start.py starts the services from any working directory.
@@ -24,7 +24,7 @@ Windows:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
-python -m osprey_telemetry.import_csv data/examples/bristol.csv --dry-run
+python -m osprey_telemetry.import_csv data/raw/YOUR_RUN.csv --dry-run
 python -B -m unittest discover -s tests
 ```
 
@@ -34,7 +34,7 @@ macOS:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
-python -m osprey_telemetry.import_csv data/examples/bristol.csv --dry-run
+python -m osprey_telemetry.import_csv data/raw/YOUR_RUN.csv --dry-run
 python -B -m unittest discover -s tests
 ```
 

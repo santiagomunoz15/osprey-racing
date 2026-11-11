@@ -1,26 +1,24 @@
-# Recorded-run dashboard
+# Recorded Runs
 
-Open http://localhost:3000/d/osprey-recorded and choose a Run.
-The stacked traces show speed, engine RPM, throttle, steering, acceleration, and suspension.
-Session details, channel statistics, and peak RPM appear on the right.
-Extra channel displays any channel from the selected run, with units in the selector.
+Open http://localhost:3000/d/osprey-recorded. Click a session in Saved runs to
+load its full time range. The plots match live CAN3 colors, units and thresholds.
+Drag on a plot to zoom in; the last-value cards follow the selected time window.
+Automatic refresh is off. Current scaling factors apply to historical raw data.
+The catalog lists the past 365 days filtered by USB receiver or Simulation.
 
-Horizontal axis switches between elapsed seconds and the original CSV Distance in metres.
-Time is aligned to each run's first sample. Graphs show complete runs independently of the global time picker.
-Choose Compare with to overlay a second imported run in gray. None disables the reference.
-Reference traces use their own first sample in time mode and original Distance in distance mode.
-Trace comparisons remain whole-run overlays; distance resampling and automatic lap alignment are not included.
+Live CAN3 has only the Input selector and shows incoming telemetry across
+sessions in its selected live time window. Use Recorded Runs for session review.
+CSV controls, CSV panels and the Bristol imported demonstration run were removed.
+The PostgreSQL importer remains available separately; CAN3 recordings are in
+InfluxDB and local JSONL files. No real CAN3 recordings were removed.
 
-The fixed traces use the demonstration MoTeC channel names. Different export names may leave a trace empty;
-use Extra channel or adapt the dashboard's channel names after confirming the car's export format.
-Grafana XY charts have independent cursors and zoom; they do not provide MoTeC's linked cursor.
+## Run names
 
-The dashboard UID and recorded-run alert are unchanged. The peak-RPM card shows the selected run;
-the recorded-run alert independently checks the latest stored run by recorded start time.
-## Lap durations
+The November 11 all-channel shop run is displayed as
+`2026-11-11__17-11-50__shop__no-driver` (Eastern start time).
+Its underlying database session remains `can3-all-live-20261111`, preserving
+sample identity. The mapping is recorded in `config/run-names.json` and applied
+to the dashboard run selector, catalog and filters. Run names have no extension.
 
-The lap table uses Lap Number transitions and elapsed seconds to calculate completed-lap durations.
-Opening and closing segments are conservatively marked Partial, without a full-lap duration.
-Lap Invalidated flags a completed lap as Invalid; the best-lap card excludes invalid laps.
-Timing is approximate to the recording sample interval (0.02 seconds at 50 Hz).
-Runs without Lap Number show no lap rows. Lap Time remains available in Extra channel.
+Review telemetry directly in Grafana. InfluxDB is the main storage and local
+JSONL recordings are retained for recovery. The CSV export workflow was removed.

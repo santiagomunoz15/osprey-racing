@@ -1,28 +1,34 @@
 # Osprey Racing telemetry
 
-Recorded runs: MoTeC CSV -> Python importer -> PostgreSQL -> Grafana.
-Live telemetry: car -> receiving ESP32 -> USB Python receiver -> InfluxDB -> Grafana.
-See [USB receiver setup and tests](docs/usb-receiver.md).
+For daily operation, see [Start Grafana and record a named CAN3 session](docs/session-quickstart.md).
+
+Live capture: car -> receiving ESP32 -> USB Python receiver -> InfluxDB -> Grafana.
+Recorded Runs reviews the same InfluxDB readings by session and time range.
+The receiver also saves local JSONL recordings for recovery.
 
 ## Start
 
-Install and start Docker Desktop. From the project root:
+Open Docker Desktop and close Arduino Serial Monitor. From the project root:
 
 ```sh
-python scripts/setup-env.py
-docker compose config --quiet
-docker compose up -d postgres grafana
-docker compose run --rm --build importer /data/examples/bristol.csv --timezone America/New_York
+python3 scripts/setup-env.py
+docker compose up -d influxdb postgres grafana
+.venv/bin/python scripts/receive-usb.py --list-ports
+session_name="$(TZ=America/New_York date '+%Y-%m-%d__%H-%M-%S')__shop__no-driver"
+.venv/bin/python scripts/start-can3.py --port /dev/cu.usbserial-1410 --session "$session_name"
 ```
 
-On macOS, use python3 where python is unavailable. Docker commands work on both platforms.
-Open http://localhost:3000. Log in as admin using GRAFANA_ADMIN_PASSWORD from .env.
-Open Dashboards > Osprey Racing > Recorded Runs and choose a run and channel.
+Use the detected USB port. See the quick-start guide above for Python environment
+setup assumptions, recording checks, stopping, and recovery. Open
+http://localhost:3000/d/osprey-can3 for live telemetry or
+http://localhost:3000/d/osprey-recorded for saved runs. Log in as admin using
+GRAFANA_ADMIN_PASSWORD from .env. Press Ctrl+C in the receiver Terminal to stop
+capture; saved readings remain available. Use a unique session name for each run.
 
 ## Layout
 
-- src/osprey_telemetry/: CSV importer, format parsers, and future live receiver.
-- data/examples/: shareable test exports; bristol.csv is the original demonstration sample.
+- src/osprey_telemetry/: CAN receiver, local recording/replay, and optional MoTeC CSV importer.
+- data/examples/: optional shareable test exports.
 - data/raw/: untouched full recordings, grouped by year and testing event.
 - data/processed/: derived data, kept separate from original recordings.
 - config/grafana/: dashboard, data-source, and alert provisioning.

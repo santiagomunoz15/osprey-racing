@@ -14,7 +14,7 @@ Unknown formats, duplicate channel names, malformed row widths, and non-finite v
 Blank measurements remain missing. Import is atomic; file contents plus timezone identify duplicates.
 
 PostgreSQL tables: runs (metadata), channels (names/units), samples (measurements/timestamps).
-The bristol.csv example contains 2,953 samples, 11 channels, and a 50 Hz sample rate.
+The parser regression fixture contains 2,953 samples, 11 channels, and a 50 Hz sample rate.
 Its metadata describes a simulator sample; it is not an Osprey Racing vehicle recording.
 
 Live InfluxDB telemetry conventions are planned, not implemented:

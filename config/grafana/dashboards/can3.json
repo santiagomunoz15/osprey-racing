@@ -2,7 +2,7 @@
   "uid": "osprey-can3",
   "title": "Osprey Racing - CAN3",
   "schemaVersion": 39,
-  "version": 15,
+  "version": 17,
   "editable": true,
   "tags": [
     "osprey-racing",
@@ -24,18 +24,6 @@
         "current": {
           "text": "USB receiver",
           "value": "usb"
-        },
-        "multi": false,
-        "includeAll": false
-      },
-      {
-        "name": "encoding",
-        "label": "Unscaled channel interpretation",
-        "type": "custom",
-        "query": "Signed big-endian : signed_be,Unsigned big-endian : unsigned_be",
-        "current": {
-          "text": "Signed big-endian",
-          "value": "signed_be"
         },
         "multi": false,
         "includeAll": false
@@ -418,7 +406,7 @@
             "type": "influxdb",
             "uid": "osprey_usb"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"8\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"8\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
         }
       ],
       "fieldConfig": {
@@ -899,7 +887,7 @@
             "type": "influxdb",
             "uid": "osprey_usb"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"17\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"17\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
         }
       ],
       "fieldConfig": {
@@ -1105,7 +1093,7 @@
             "type": "influxdb",
             "uid": "osprey_usb"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"35\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"35\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\", \"session\", \"device\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: true)\n  |> keep(columns: [\"_time\", \"_value\"])"
         }
       ],
       "fieldConfig": {
@@ -1623,7 +1611,7 @@
             "type": "influxdb",
             "uid": "osprey_usb"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"8\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"8\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
         },
         {
           "refId": "C2",
@@ -1695,7 +1683,7 @@
             "type": "influxdb",
             "uid": "osprey_usb"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"17\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"17\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
         },
         {
           "refId": "C18",
@@ -1727,7 +1715,7 @@
             "type": "influxdb",
             "uid": "osprey_usb"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"35\" and r.source == \"${source}\" and r._field == \"${encoding}\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5s)\n  |> filter(fn: (r) => r._measurement == \"can3_raw\" and r.can_id == \"35\" and r.source == \"${source}\" and r._field == \"signed_be\")\n  |> group(columns: [\"channel\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])"
         },
         {
           "refId": "C24",
@@ -2483,5 +2471,13 @@
       "30s",
       "1m"
     ]
-  }
+  },
+  "links": [
+    {
+      "title": "Review recorded runs",
+      "type": "link",
+      "url": "/d/osprey-recorded",
+      "targetBlank": false
+    }
+  ]
 }
