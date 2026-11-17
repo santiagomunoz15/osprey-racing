@@ -1,1 +1,0 @@
-"""Osprey Racing telemetry."""

@@ -4,6 +4,10 @@
     {
       "orgId": 1,
       "uid": "osprey-recorded-rpm-9000"
+    },
+    {
+      "orgId": 1,
+      "uid": "osprey-live-rpm-9000"
     }
   ]
 }

@@ -170,6 +170,7 @@ def main():
     parser.add_argument("--samples", type=int, default=100)
     parser.add_argument("--rate", type=float, default=50, help="Simulation messages per second")
     parser.add_argument("--dry-run", action="store_true", help="Print measurements without database writes")
+    parser.add_argument("--sync-dir", type=Path, help="Copy closed recording to an existing Drive folder; otherwise use RECORDING_SYNC_DIR")
     parser.add_argument("--record", type=Path, help="New JSONL recording path (never overwritten)")
     parser.add_argument("--local-only", action="store_true", help="Record without InfluxDB")
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
@@ -283,6 +284,16 @@ def main():
         LOG.info("Final: received=%d invalid=%d dropped=%d written=%d elapsed=%.2fs",
                  *stats.values(), time.monotonic() - started)
         LOG.info("Recording retained at %s; replay it to recover unsent measurements", path)
+    sync_dir = args.sync_dir or os.getenv("RECORDING_SYNC_DIR")
+    if sync_dir and not failures and (args.source == "usb" or args.sync_dir is not None):
+        from .drive_sync import copy_recording
+        try:
+            copied = copy_recording(path, sync_dir, args.session)
+            LOG.info("Recording copied to Drive folder: %s", copied)
+            LOG.info("Google Drive for desktop handles upload; check its sync status to confirm completion")
+        except OSError as error:
+            LOG.error("Drive copy failed: %s. Original retained at %s; retry with scripts/sync-recording.py", error, path)
+            raise SystemExit(1)
     if failures:
         raise SystemExit(1)
 

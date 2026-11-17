@@ -1,121 +1,144 @@
-# Start Grafana and record a CAN3 run
+# Daily operation
 
-## Before starting
+Complete [First-time setup](setup.md) once. Run commands from the repository root
+with its Python environment activated. On this laptop the project is at
+`/Users/santiagom/Desktop/Formula SAE/osprey-racing`.
 
-Connect the ESP32 running `firmware/can3_stream/can3_stream.ino` and power the
-car/dash when ready to collect data. Close Arduino Serial Monitor: it and the
-Python receiver cannot use the USB port simultaneously.
+## 1. Prepare the laptop and car
 
-Open Docker Desktop and wait until its engine is running. These instructions
-assume this laptop's existing project, `.env`, and Python virtual environment.
-```
+Open Docker Desktop and wait for the engine. Connect the ESP32 running the
+all-channel streaming sketch, then power the car/dash when ready. Close Arduino
+Serial Monitor and any other receiver process.
 
-## 1. Start Grafana and the databases
-
-```sh
-docker compose up -d influxdb postgres grafana
-```
-
-Open http://localhost:3000/d/osprey-can3. Log in using the existing Grafana
-credentials; the configured administrator password is in the local `.env` file.
-Choose **USB receiver** for the car. The dashboard refreshes every second.
-Starting Grafana alone does not record any telemetry.
-
-## 2. Find the ESP32 port
+Activate the environment in each new Terminal:
 
 ```sh
-.venv/bin/python scripts/receive-usb.py --list-ports
+# macOS/Linux, from the project folder
+source .venv/bin/activate
 ```
 
-Use the USB Serial port, not a Bluetooth port. The port used in this setup was
-`/dev/cu.usbserial-1410`, but it can change when reconnecting the board.
-
-## 3. Start a named session
-
-Use this naming convention:
-
-```text
-YYYY-MM-DD__HH-MM-SS__location__driver
+```powershell
+# Windows PowerShell, from the project folder
+.\.venv\Scripts\Activate.ps1
 ```
 
-Use the actual start time in Eastern Time, a meaningful location, and the driver
-name. Use `no-driver` for a stationary test. Keep location and driver to letters,
-digits, and hyphens. The name identifies a database session and has no file
-extension. Use a unique name for every run.
+Find the USB port:
 
-This command generates the current Eastern date/time automatically:
+```sh
+python scripts/receive-usb.py --list-ports
+```
+
+Use the listed USB Serial port, not Bluetooth. `/dev/cu.usbserial-1410` was used
+on this Mac; it can change. Windows uses a name such as `COM5`.
+
+## 2. Start a named session
+
+Use `YYYY-MM-DD__HH-MM-SS__location__driver`, with Eastern start time, no file
+extension and a new name for each run. Keep location and driver names to letters,
+digits and hyphens. Use `shop` and `no-driver` for a stationary test.
+
+On macOS/Linux, this fills in the current Eastern date/time:
 
 ```sh
 session_name="$(TZ=America/New_York date '+%Y-%m-%d__%H-%M-%S')__shop__no-driver"
-.venv/bin/python scripts/start-can3.py \
-  --port /dev/cu.usbserial-1410 \
-  --session "$session_name"
+python scripts/start-can3.py --port /dev/cu.usbserial-1410 --session "$session_name"
 ```
 
-Replace the port if needed. Change `shop` and `no-driver` before starting when
-appropriate. `start-can3.py` also starts the Docker services, so step 2 is optional
-if you use this command and Docker Desktop is already running.
+On Windows, replace the example with the actual Eastern start time and port:
 
-Keep that Terminal running throughout the test. The startup log prints the
-session name and the local recording path, such as:
-
-```text
-Local recording: data/recordings/1794435110362773000.jsonl
-Session: 2026-11-11__17-11-50__shop__no-driver; source: usb
+```powershell
+python scripts/start-can3.py --port COM5 --session "2026-11-17__14-30-00__shop__no-driver"
 ```
 
-Confirm **Received** and **written** counters increase. A connected port alone
-does not establish that CAN data is arriving. Avoid starting a second receiver
-while one already owns the port.
+`start-can3.py` starts InfluxDB and Grafana, then runs the receiver.
+Open http://localhost:3000/d/osprey-can3 and choose **USB receiver**. The only live
+selector is Input (USB/Simulation); graphs refresh every second. Running Grafana
+alone does not record telemetry.
 
-## 4. Stop capture
+Keep the receiver Terminal open. Confirm **Received** and **written** counters
+increase and check the graphs. The log prints the session name and local JSONL
+path. Messages are saved locally before being queued for InfluxDB; a connected
+port alone does not establish that CAN data is arriving.
 
-Press **Ctrl+C in the receiver Terminal** and wait for its final log.
+## 3. Stop and share
 
-Readings are saved throughout the run; stopping does not trigger saving.
-Grafana and InfluxDB remain running after capture stops. Previously stored data
-remains available. If shutdown reports unwritten points, recover them from the
-recording path printed in the log:
+Press **Ctrl+C in the receiver Terminal** and wait for the final log and any
+Drive copy to finish. Data is saved continuously; stopping ends capture.
+Grafana and InfluxDB stay running and retain saved readings.
+
+If `RECORDING_SYNC_DIR` is configured, the closed USB recording is copied to the
+team's Drive folder with a session-based name and unique suffix. The original
+local file stays intact. Check Google Drive's sync status to confirm upload.
+
+If shutdown reports unwritten points, recover them from the exact recording
+path in the log:
 
 ```sh
-.venv/bin/python scripts/replay-usb.py data/recordings/ACTUAL_FILENAME.jsonl
+python scripts/replay-usb.py "data/recordings/ACTUAL_FILENAME.jsonl"
 ```
 
-Replace `ACTUAL_FILENAME` with the real filename. Replay preserves timestamps
-and session identity; it does not make an old run appear as current live data.
-If you want to stop the dashboards/databases afterward, use `docker compose stop`.
-Never remove the Docker volumes to end a recording.
+If the Drive copy fails, retry after stopping the receiver and restoring Drive
+access:
 
-## 5. Review the run
+```sh
+python scripts/sync-recording.py "data/recordings/ACTUAL_FILENAME.jsonl"
+```
 
-Open http://localhost:3000/d/osprey-recorded. Refresh the page if necessary, then
-click the session name in **Saved runs**. This selects its complete stored time
-range. Drag on a plot to inspect a smaller interval. Recorded Runs has no
-automatic refresh; CAN3 is the dashboard for current live readings.
+Use only completed recordings for sharing. To shut down the services afterward:
 
-## Where the data goes
+```sh
+docker compose stop
+```
 
-| Storage | Purpose |
-| --- | --- |
-| InfluxDB, persistent Docker volumes | Main telemetry storage read by Grafana, with timestamps and session IDs. |
-| `data/recordings/*.jsonl` | Automatic local recording of received messages and database points; used for recovery. |
+## 4. Review a saved run
 
-Raw values remain stored. Current dashboard factors and thresholds are applied
-when viewing them; provisional factors are not confirmed sensor calibrations.
+Open http://localhost:3000/d/osprey-recorded and refresh the page if needed.
+Click a session name in **Saved runs** to load its complete recorded time range.
+Drag on a graph to zoom; last-reading cards follow the selected interval.
+Recorded Runs reviews real USB sessions and does not automatically refresh.
+Changing its Run dropdown alone does not reset the time picker; use the catalog
+link to load the run's bounds. The catalog covers the past 365 days, which is a
+viewing filter, not an automatic deletion policy.
 
-## Preserve completed runs
+Current dashboard factors and thresholds also apply to historical raw readings.
+Some factors remain provisional; rear suspension calibration is still pending.
 
-Review saved runs directly in Grafana. No CSV export is needed.
-Copy completed JSONL recordings or database backups to team storage or another
-drive. InfluxDB and local JSONL files are both on this laptop; they do not protect
-against loss of the laptop itself.
+## 5. Review a teammate's recording
+
+Download the completed `.jsonl` from **Telemetry Runs** into `data/recordings/`.
+On your own computer, complete setup and start Docker Desktop, then:
+
+```sh
+docker compose up -d influxdb grafana
+python scripts/replay-usb.py "data/recordings/DOWNLOADED_FILENAME.jsonl"
+```
+
+Replay validates the entire recording and writes samples with their original
+session, source and timestamps. It does not require the ESP32 and does not make
+old readings current on live CAN3. Refresh Recorded Runs and click that session.
+Replaying the same recording into the same bucket is safe.
+
+## Storage and backups
+
+- **InfluxDB:** main readings stored in persistent Docker volumes on this laptop.
+- **`data/recordings/*.jsonl`:** original messages, timestamps and database points
+  for recovery and sharing. These contain the actual telemetry.
+- **Google Drive:** copies of completed recordings; teammates replay these locally.
+- **GitHub:** code and dashboard configuration, not recordings, volumes or `.env`.
+
+Both local storage copies are on the laptop. Confirm shared recordings have
+synced, or copy backups to another drive. No CSV export is part of this workflow.
 
 ## Quick troubleshooting
 
-- **Port busy:** stop any other receiver and close Arduino Serial Monitor.
-- **Docker unavailable:** open Docker Desktop and wait for the engine.
-- **Received stays at zero:** check the ESP32 stream, car/dash power, CAN connection,
-  and selected USB port. Starting the service does not verify the sensors.
-- **Received increases but written does not:** check InfluxDB; preserve the JSONL
-  recording and replay it once the database is available.
-- **No historical plots:** click the run in Saved runs to set its date/time range.
+| Symptom | Check |
+| --- | --- |
+| Port busy | Close Serial Monitor and stop other receivers. |
+| Docker unavailable | Start Docker Desktop and wait for its engine. |
+| Received stays zero | Car/dash power, CAN wiring, streaming firmware and USB port. |
+| Received rises, written stalls | InfluxDB connection; keep the JSONL and replay after recovery. |
+| No saved-run plot | Click the session in Saved runs to load its time range. |
+| Drive copy fails | Existing folder, desktop app and write permissions; retry the completed file. |
+
+For a test session, note the date, location, driver, car setup, conditions, run
+name and any observations or calibration changes alongside the recording.

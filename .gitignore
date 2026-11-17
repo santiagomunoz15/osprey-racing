@@ -9,3 +9,5 @@ dist/
 backups/
 
 data/recordings/
+
+.DS_Store

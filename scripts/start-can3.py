@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--port', required=True, help='Close Arduino Serial Monitor first')
 parser.add_argument('--session', help='Optional unique session name')
 args = parser.parse_args()
-subprocess.run(['docker', 'compose', 'up', '-d', 'influxdb', 'postgres', 'grafana'], cwd=root, check=True)
+subprocess.run(['docker', 'compose', 'up', '-d', 'influxdb', 'grafana'], cwd=root, check=True)
 print('Dashboard: http://localhost:3000/d/osprey-can3', flush=True)
 command = [sys.executable, str(root / 'scripts/receive-usb.py'), '--port', args.port]
 if args.session:

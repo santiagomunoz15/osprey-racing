@@ -5,15 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "osprey-telemetry"
 version = "0.1.0"
-description = "Recorded and live telemetry tools for Osprey Racing"
+description = "CAN3 capture, recording and replay for Osprey Racing"
 requires-python = ">=3.10"
-dependencies = ["psycopg[binary]>=3.2,<4", "tzdata>=2025.1"]
+dependencies = []
 
 [project.optional-dependencies]
 live = ["pyserial>=3.5,<4"]
 
 [project.scripts]
-osprey-import = "osprey_telemetry.import_csv:main"
 osprey-receive = "osprey_telemetry.live.usb_receiver:main"
 
 [tool.setuptools.packages.find]
